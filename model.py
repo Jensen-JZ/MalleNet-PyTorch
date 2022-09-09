@@ -37,30 +37,29 @@ class ShufflePyramidDecom(nn.Module):
 class ResConvBlock(nn.Module):
     '''Inverted Bottleneck Block
     '''
-    def __init__(self, in_channel=64):
+    def __init__(self, in_channels=64):
         super().__init__()
         self.convblock = nn.Sequential(OrderedDict([
-            ('conv1', nn.Conv2d(in_channel, in_channel*5, kernel_size=1, bias=True)), 
-            ('norm1', nn.BatchNorm2d(in_channel*5)),
+            ('conv1', nn.Conv2d(in_channels, in_channels*5, kernel_size=1, bias=True)), 
+            ('norm1', nn.BatchNorm2d(in_channels*5)),
             ('prelu', nn.PReLU(init=0.0)),
-            ('dwconv', nn.Conv2d(in_channel*5, in_channel*5, kernel_size=3, padding=1, bias=True, 
-groups=in_channel*5)),
-            ('norm2', nn.BatchNorm2d(in_channel*5)),
+            ('dwconv', nn.Conv2d(in_channels*5, in_channels*5, kernel_size=3, padding=1, bias=True, groups=in_channels*5)),  # Depth-wise Conv
+            ('norm2', nn.BatchNorm2d(in_channels*5)),
             ('prelu', nn.PReLU(init=0.0)),
-            ('conv2', nn.Conv2d(in_channel*5, in_channel, kernel_size=1, bias=True)),
-            ('norm3', nn.BatchNorm2d(in_channel)), 
+            ('conv2', nn.Conv2d(in_channels*5, in_channels, kernel_size=1, bias=True)),
+            ('norm3', nn.BatchNorm2d(in_channels)), 
             ('prelu', nn.PReLU(init=0.0)),
         ]))
         
     def init_weights(self):
-        for name, param in self.named_modules():
+        for _, param in self.named_modules():
             if isinstance(param, nn.Conv2d):
                 nn.init.kaiming_normal_(param.weight) 
-         
+
     def forward(self, x):
         identify = x
         self.init_weights()
-        out = x + self.convblock(x)
+        out = identify + self.convblock(x)
         
         return out
     
