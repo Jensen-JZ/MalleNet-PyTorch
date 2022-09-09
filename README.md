@@ -7,6 +7,7 @@ Unofficial PyTorch implementation of *Fast and High-Quality Image Denoising via 
 * Python >= 3.7
 * PyTorch >= 1.8.2 (LTS)
 * NumPy >= 1.19.2
+* GCC >= 5.0
 * ...
 
 
