@@ -13,13 +13,13 @@ PyTorch implementation of *Fast and High-Quality Image Denoising via Malleable C
 
 ## Usage
 
-* Move
+* Moving the configuration files to the specified path.
 
   ```shell
   mv configs/* deep_bilateral_network/bilateral_slice_op/
   ```
 
-* Building the bilateral slice layer
+* Building the bilateral slice layer.
 
   ```shell
   cd deep_bilateral_network/bilateral_slice_op/
