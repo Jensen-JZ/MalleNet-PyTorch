@@ -1,0 +1,3 @@
+[submodule "deep_bilateral_network"]
+	path = deep_bilateral_network
+	url = https://github.com/EricElmoznino/deep_bilateral_network
