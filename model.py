@@ -37,17 +37,17 @@ class ShufflePyramidDecom(nn.Module):
 class ResConvBlock(nn.Module):
     '''Inverted Bottleneck Block
     '''
-    def __init__(self, in_channels=64):
+    def __init__(self, in_channel=64):
         super().__init__()
         self.convblock = nn.Sequential(OrderedDict([
-            ('conv1', nn.Conv2d(in_channels, in_channels*5, kernel_size=1, bias=True)), 
-            ('norm1', nn.BatchNorm2d(in_channels*5)),
+            ('conv1', nn.Conv2d(in_channel, in_channel*5, kernel_size=1, bias=True)), 
+            ('norm1', nn.BatchNorm2d(in_channel*5)),
             ('prelu', nn.PReLU(init=0.0)),
-            ('dwconv', nn.Conv2d(in_channels*5, in_channels*5, kernel_size=3, padding=1, bias=True, groups=in_channels*5)),  # Depth-wise Conv
-            ('norm2', nn.BatchNorm2d(in_channels*5)),
+            ('dwconv', nn.Conv2d(in_channel*5, in_channel*5, kernel_size=3, padding=1, bias=True, groups=in_channel*5)),  # Depth-wise Conv
+            ('norm2', nn.BatchNorm2d(in_channel*5)),
             ('prelu', nn.PReLU(init=0.0)),
-            ('conv2', nn.Conv2d(in_channels*5, in_channels, kernel_size=1, bias=True)),
-            ('norm3', nn.BatchNorm2d(in_channels)), 
+            ('conv2', nn.Conv2d(in_channel*5, in_channel, kernel_size=1, bias=True)),
+            ('norm3', nn.BatchNorm2d(in_channel)), 
             ('prelu', nn.PReLU(init=0.0)),
         ]))
         
@@ -173,8 +173,7 @@ class Policy(nn.Module):
             x = self.low_pool_3(x)
             x = self.res_block_4(x)
         out = self.low_dense_2(x)
-        out = torch.stack(torch.split(out, out.shape[1]//(self.n_in*self.n_out), dim=1), dim=2).permute(0, 2, 3, 
-4, 1)
+        out = torch.stack(torch.split(out, out.shape[1]//(self.n_in*self.n_out), dim=1), dim=2).permute(0, 2, 3, 4, 1)
         
         return out
     
@@ -261,8 +260,7 @@ class LargePolicy(nn.Module):
             x = self.low_pool_3(x)
             x = self.res_block_4(x)
         out = self.low_dense_2(x)
-        out = torch.stack(torch.split(out, out.shape[1]//(self.n_in*self.n_out), dim=1), dim=2).permute(0, 2, 3, 
-4, 1)
+        out = torch.stack(torch.split(out, out.shape[1]//(self.n_in*self.n_out), dim=1), dim=2).permute(0, 2, 3, 4, 1)
         
         return out
     
@@ -286,7 +284,7 @@ class BilateralSliceFunction(torch.autograd.Function):
     
 
 class ModelTwo(nn.Module):
-    def __init__(self, num_features=64, gz=1, low_res='down', stage=3, group=64):
+    def __init__(self, num_feature=64, gz=1, low_res='down', stage=3, group=64):
         super().__init__()
         
         self.stage = stage
@@ -298,7 +296,7 @@ class ModelTwo(nn.Module):
         
         if low_res == 'down':
             low_res_blocks = [
-                Policy(in_channels=num_features*2**(i-1 if i-1>0 else 0), num_features=num_features, 
+                Policy(in_channel=num_feature*2**(i-1 if i-1>0 else 0), num_feature=num_feature, 
                        n_in=self.n_in, n_out=self.n_out, gz=(self.gz*2**(i-1 if i-1>0 else 0))*self.group, 
                        stage=self.stage) for i in range(4)
             ]
@@ -307,15 +305,15 @@ class ModelTwo(nn.Module):
         elif low_res == 'downavg2':
             low_res_conv = nn.Sequential(OrderedDict([
                 ('avg', nn.AvgPool2d(kernel_size=2, stride=2)), 
-                ('policy', Policy(in_channels=num_features, num_features=num_features, 
+                ('policy', Policy(in_channel=num_feature, num_feature=num_feature, 
                                   n_in=self.n_in, n_out=self.n_out, gz=self.gz*self.group, 
                                   stage=self.stage)),
             ]))
             low_res_blocks = [low_res_conv for i in range(2)]
-            low_res_blocks.append(Policy(in_channels=num_features*2, num_features=num_features, 
+            low_res_blocks.append(Policy(in_channel=num_feature*2, num_feature=num_feature, 
                                          n_in=self.n_in, n_out=self.n_out, gz=self.gz*self.group*2, 
                                          stage=self.stage))
-            low_res_blocks.append(Policy(in_channels=num_features*4, num_features=num_features, 
+            low_res_blocks.append(Policy(in_channel=num_feature*4, num_feature=num_feature, 
                                          n_in=self.n_in, n_out=self.n_out, gz=self.gz*self.group*4, 
                                          stage=self.stage))
             
@@ -324,15 +322,15 @@ class ModelTwo(nn.Module):
         elif low_res == 'ldownavg2':
             low_res_conv = nn.Sequential(OrderedDict([
                 ('avg', nn.AvgPool2d(kernel_size=2, stride=2)), 
-                ('largepolicy', LargePolicy(in_channels=num_features, num_features=num_features, 
+                ('largepolicy', LargePolicy(in_channel=num_feature, num_feature=num_feature, 
                                             n_in=self.n_in, n_out=self.n_out, gz=self.gz*self.group, 
                                             stage=self.stage)),
             ]))
             low_res_blocks = [low_res_conv for i in range(2)]
-            low_res_blocks.append(LargePolicy(in_channels=num_features*2, num_features=num_features, 
+            low_res_blocks.append(LargePolicy(in_channel=num_feature*2, num_feature=num_feature, 
                                               n_in=self.n_in, n_out=self.n_out, gz=self.gz*self.group*2, 
                                               stage=self.stage))
-            low_res_blocks.append(LargePolicy(in_channels=num_features*4, num_features=num_features, 
+            low_res_blocks.append(LargePolicy(in_channel=num_feature*4, num_feature=num_feature, 
                                               n_in=self.n_in, n_out=self.n_out, gz=self.gz*self.group*4, 
                                               stage=self.stage))
             
@@ -341,15 +339,15 @@ class ModelTwo(nn.Module):
         elif low_res == 'downavg4':
             low_res_conv = nn.Sequential(OrderedDict([
                 ('avg', nn.AvgPool2d(kernel_size=4, stride=4)), 
-                ('policy', Policy(in_channels=num_features, num_features=num_features, 
+                ('policy', Policy(in_channel=num_feature, num_feature=num_feature, 
                                   n_in=self.n_in, n_out=self.n_out, gz=self.gz*self.group, 
                                   stage=self.stage)),
             ]))
             low_res_blocks = [low_res_conv for i in range(2)]
-            low_res_blocks.append(Policy(in_channels=num_features*2, num_features=num_features, 
+            low_res_blocks.append(Policy(in_channel=num_feature*2, num_feature=num_feature, 
                                          n_in=self.n_in, n_out=self.n_out, gz=self.gz*self.group*2, 
                                          stage=self.stage))
-            low_res_blocks.append(Policy(in_channels=num_features*4, num_features=num_features, 
+            low_res_blocks.append(Policy(in_channel=num_feature*4, num_feature=num_feature, 
                                          n_in=self.n_in, n_out=self.n_out, gz=self.gz*self.group*4, 
                                          stage=self.stage))
             
@@ -358,15 +356,15 @@ class ModelTwo(nn.Module):
         elif low_res == 'ldownavg4':
             low_res_conv = nn.Sequential(OrderedDict([
                 ('avg', nn.AvgPool2d(kernel_size=4, stride=4)), 
-                ('largepolicy', LargePolicy(in_channels=num_features, num_features=num_features, 
+                ('largepolicy', LargePolicy(in_channel=num_feature, num_feature=num_feature, 
                                             n_in=self.n_in, n_out=self.n_out, gz=self.gz*self.group, 
                                             stage=self.stage)),
             ]))
             low_res_blocks = [low_res_conv for i in range(2)]
-            low_res_blocks.append(LargePolicy(in_channels=num_features*2, num_features=num_features, 
+            low_res_blocks.append(LargePolicy(in_channel=num_feature*2, num_feature=num_feature, 
                                               n_in=self.n_in, n_out=self.n_out, gz=self.gz*self.group*2, 
                                               stage=self.stage))
-            low_res_blocks.append(LargePolicy(in_channels=num_features*4, num_features=num_features, 
+            low_res_blocks.append(LargePolicy(in_channel=num_feature*4, num_feature=num_feature, 
                                               n_in=self.n_in, n_out=self.n_out, gz=self.gz*self.group*4, 
                                               stage=self.stage))
             
@@ -386,36 +384,36 @@ class ModelTwo(nn.Module):
         self.gate = [torch.tensor([0.], requires_grad=True) for i in range(4)]
         
         self.conv_4_1 = nn.Sequential(OrderedDict([
-            ('res1', ResConvBlock(num_features*4)),
-            ('res2', ResConvBlock(num_features*4)),
+            ('res1', ResConvBlock(num_feature*4)),
+            ('res2', ResConvBlock(num_feature*4)),
         ]))
         self.conv_4_2 = nn.Sequential(OrderedDict([
-            ('res1', ResConvBlock(num_features*4)),
-            ('res2', ResConvBlock(num_features*4)),
+            ('res1', ResConvBlock(num_feature*4)),
+            ('res2', ResConvBlock(num_feature*4)),
         ]))
         self.conv_3_1 = nn.Sequential(OrderedDict([
-            ('conv', nn.Conv2d(num_features*6, num_features*2, 3, padding=1, bias=True)),
-            ('norm', nn.BatchNorm2d(num_features*2)),
-            ('res1', ResConvBlock(num_features*2)),
-            ('res2', ResConvBlock(num_features*2)),
+            ('conv', nn.Conv2d(num_feature*6, num_feature*2, 3, padding=1, bias=True)),
+            ('norm', nn.BatchNorm2d(num_feature*2)),
+            ('res1', ResConvBlock(num_feature*2)),
+            ('res2', ResConvBlock(num_feature*2)),
         ]))
         self.conv_3_2 = nn.Sequential(OrderedDict([
-            ('res1', ResConvBlock(num_features*2)),
-            ('res2', ResConvBlock(num_features*2)),
+            ('res1', ResConvBlock(num_feature*2)),
+            ('res2', ResConvBlock(num_feature*2)),
         ]))
         self.conv_2_1 = nn.Sequential(OrderedDict([
-            ('conv', nn.Conv2d(num_features*3, num_features, 3, padding=1, bias=True)),
-            ('norm', nn.BatchNorm2d(num_features)),
-            ('res1', ResConvBlock(num_features)),
-            ('res2', ResConvBlock(num_features)),
+            ('conv', nn.Conv2d(num_feature*3, num_feature, 3, padding=1, bias=True)),
+            ('norm', nn.BatchNorm2d(num_feature)),
+            ('res1', ResConvBlock(num_feature)),
+            ('res2', ResConvBlock(num_feature)),
         ]))
         self.conv_2_2 = nn.Sequential(OrderedDict([
-            ('res1', ResConvBlock(num_features)),
-            ('res2', ResConvBlock(num_features)),
+            ('res1', ResConvBlock(num_feature)),
+            ('res2', ResConvBlock(num_feature)),
         ]))
         self.conv_1 = nn.Sequential(OrderedDict([
-            ('conv', nn.Conv2d(num_features*2, num_features, 1, padding=0, bias=True)),
-            ('norm', nn.BatchNorm2d(num_features)),
+            ('conv', nn.Conv2d(num_feature*2, num_feature, 1, padding=0, bias=True)),
+            ('norm', nn.BatchNorm2d(num_feature)),
         ]))
         self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
         
@@ -436,14 +434,12 @@ class ModelTwo(nn.Module):
         content_feature = image_4
         # ********* Efficient Predictor Network ***********
         grid_coefficients = self.low_res_blocks[-1](content_feature)
-        grid_coefficients = torch.stack(torch.split(grid_coefficients, grid_coefficients.shape[4]//group, dim=4), 
-dim=5)
+        grid_coefficients = torch.stack(torch.split(grid_coefficients, grid_coefficients.shape[4]//group, dim=4), dim=5)
         # ********* Efficient Predictor Network ***********
         post_image = []
         # ********* Efficient On-the-fly Slicing ***********
         for j in range(group):
-            post_image_j = self.bilateral_slice.apply(  # args: grid (N, C, H, W, D), guide (N, H, W), input (N, 
-C, H, W);
+            post_image_j = self.bilateral_slice.apply(  # args: grid (N, C, H, W, D), guide (N, H, W), input (N, C, H, W);
                 grid_coefficients[:, :, :, :, :, j].contiguous(),
                 torch.clip(content_feature[:, j, :, :], 0, 1),
                 content_feature[:, j:j+1, :, :].contiguous(),
@@ -463,8 +459,7 @@ C, H, W);
         group = self.group * 2
         content_feature = image_3
         grid_coefficients = self.low_res_blocks[-2](content_feature)
-        grid_coefficients = torch.stack(torch.split(grid_coefficients, grid_coefficients.shape[4]//group, dim=4), 
-dim=5)
+        grid_coefficients = torch.stack(torch.split(grid_coefficients, grid_coefficients.shape[4]//group, dim=4), dim=5)
         post_image = []
         for j in range(group):
             post_image_j = self.bilateral_slice.apply(
@@ -485,8 +480,7 @@ dim=5)
         group = self.group
         content_feature = image_2
         grid_coefficients = self.low_res_blocks[-3](content_feature)
-        grid_coefficients = torch.stack(torch.split(grid_coefficients, grid_coefficients.shape[4]//group, dim=4), 
-dim=5)
+        grid_coefficients = torch.stack(torch.split(grid_coefficients, grid_coefficients.shape[4]//group, dim=4), dim=5)
         post_image = []
         for j in range(group):
             post_image_j = self.bilateral_slice.apply(
@@ -507,8 +501,7 @@ dim=5)
         group = self.group
         content_feature = image_1
         grid_coefficients = self.low_res_blocks[0](content_feature)
-        grid_coefficients = torch.stack(torch.split(grid_coefficients, grid_coefficients.shape[4]//group, dim=4), 
-dim=5)
+        grid_coefficients = torch.stack(torch.split(grid_coefficients, grid_coefficients.shape[4]//group, dim=4), dim=5)
         print(grid_coefficients.shape)
         post_image = []
         for j in range(group):
@@ -555,12 +548,10 @@ class ModelThree(nn.Module):
     
     
 class MalleNet(nn.Module):
-    def __init__(self, in_channel=3, num_feature=64, out_channel=3, low_res="down", down_scale=2, stage=3, 
-depth=3, gz=1, n_in=1, n_out=2, group=64):
+    def __init__(self, in_channel=3, num_feature=64, out_channel=3, low_res="down", down_scale=2, stage=3, depth=3, gz=1, n_in=1, n_out=2, group=64):
         super().__init__()
         
-        self.model_1 = ModelOne(in_channel=in_channel, num_feature=num_feature, down_scale=down_scale, 
-depth=depth)
+        self.model_1 = ModelOne(in_channel=in_channel, num_feature=num_feature, down_scale=down_scale, depth=depth)
         self.model_2 = ModelTwo(num_feature=num_feature, low_res=low_res, gz=gz, stage=stage, group=group)
         self.model_3 = ModelThree(num_feature=num_feature, out_channel=out_channel)
     
