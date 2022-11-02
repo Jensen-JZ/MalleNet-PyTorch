@@ -122,7 +122,7 @@ class ResConvBlock(nn.Module):
         Args: x, tensor, 4D, [batch, channel, height, width]
         Return: out, tensor, 4D, [batch, channel, height, width]
     '''
-    def __init__(self, in_channel=64):
+    def __init__(self, in_channel=64, norm='kaiming'):
         super().__init__()
         self.conv_block = nn.Sequential(OrderedDict([
             ('conv1', nn.Conv2d(in_channel, in_channel*5, kernel_size=1, padding=0, bias=True)), 
@@ -136,6 +136,7 @@ class ResConvBlock(nn.Module):
             ('norm3', nn.BatchNorm2d(in_channel)),
             ('prelu', nn.PReLU(init=0.0)),
         ]))
+        self.init_weights(norm)
         
     def init_weights(self, norm='kaiming'):
         for _, param in self.named_modules():
@@ -144,9 +145,8 @@ class ResConvBlock(nn.Module):
                     nn.init.kaiming_normal_(param.weight)
         
         
-    def forward(self, x, norm='kaiming'):
+    def forward(self, x):
         identity = x
-        self.init_weights(norm)
         out = identity + self.conv_block(x)
         
         return out
@@ -157,7 +157,7 @@ class Policy(nn.Module):
         Args: x, list of tensors
         Return: out, tensor, 6D, [batch, channel, height, width, depth, group]
     '''
-    def __init__(self, in_channel=64, num_feature=64, n_in=1, n_out=2, gz=1, stage=3):
+    def __init__(self, in_channel=64, num_feature=64, n_in=1, n_out=2, gz=1, stage=3, norm='kaiming'):
         super().__init__()
         self.stage = stage
         self.n_in = n_in
@@ -201,6 +201,7 @@ class Policy(nn.Module):
             self.res_block_4 = nn.Sequential(*res_block_4)
             
         self.low_dense_2 = nn.Conv2d(num_feature, self.gz*self.n_in*self.n_out, 1, padding=0, bias=True)
+        self.init_weights(norm)
             
     def init_weights(self, norm='kaiming'):
         for name, param in self.named_modules():
@@ -208,8 +209,7 @@ class Policy(nn.Module):
                 if norm == 'kaiming':
                     nn.init.kaiming_normal_(param.weight)
             
-    def forward(self, x, norm='kaiming'):
-        self.init_weights(norm)
+    def forward(self, x):
         x = self.low_dense_1(x)
         x = self.res_block_1(x)
         if self.stage > 1:
@@ -234,7 +234,7 @@ class LargePolicy(nn.Module):
         Args: x, list of tensors
         Return: out, tensor, 6D, [batch, channel, height, width, depth, group]
     '''
-    def __init__(self, in_channel=64, num_feature=64, n_in=1, n_out=2, gz=1, stage=3):
+    def __init__(self, in_channel=64, num_feature=64, n_in=1, n_out=2, gz=1, stage=3, norm='kaiming'):
         super().__init__()
         self.stage = stage
         self.n_in = n_in
@@ -294,6 +294,7 @@ class LargePolicy(nn.Module):
             
         self.stage = 4 if self.stage > 3 else self.stage
         self.low_dense_2 = nn.Conv2d(num_feature*2**(self.stage-1), self.n_in*self.n_out*self.gz, 1, padding=0, bias=True)
+        self.init_weights(norm)
         
     def init_weights(self, norm='kaiming'):
         for name, param in self.named_modules():
@@ -301,8 +302,7 @@ class LargePolicy(nn.Module):
                 if norm == 'kaiming':
                     nn.init.kaiming_normal_(param.weight)
         
-    def forward(self, x, norm='kaiming'):
-        self.init_weights(norm)
+    def forward(self, x):
         x = self.low_dense_1(x)
         x = self.res_block_1(x)
         if self.stage > 1:
@@ -327,7 +327,7 @@ class ModelOne(nn.Module):
         Args: x, input tensor, 4D, [batch, channel, height, width]
         Return: out, list of tensors
     '''
-    def __init__(self, in_channel=3, num_feature=64, down_scale=2, depth=3):
+    def __init__(self, in_channel=3, num_feature=64, down_scale=2, depth=3, norm='kaiming'):
         super().__init__()
         self.in_channel = in_channel
         self.num_feature = num_feature
@@ -357,6 +357,7 @@ class ModelOne(nn.Module):
         self.pyramids += [
             self.conv_pyramid_1, self.conv_pyramid_2, self.conv_pyramid_3, self.conv_pyramid_4
         ]
+        self.init_weights(norm)
         
     def init_weights(self, norm='kaiming'):
         for name, param in self.named_modules():
@@ -364,9 +365,8 @@ class ModelOne(nn.Module):
                 if norm == 'kaiming':
                     nn.init.kaiming_normal_(param.weight)
 
-    def forward(self, x, norm='kaiming'):
+    def forward(self, x):
         pyramid_outs = self.shuffle_pyramid_decom(x)
-        self.init_weights(norm)
         outs = []
         for i, feature in enumerate(pyramid_outs):
             outs.append(self.pyramids[i](feature))
@@ -379,7 +379,7 @@ class ModelTwo(nn.Module):
         Args: x, list of tensors
         Return: out, list of tensors
     ''' 
-    def __init__(self, num_feature=64, low_res='down', stage=3, n_in=1, n_out=2, gz=1, group=None):
+    def __init__(self, num_feature=64, low_res='down', stage=3, n_in=1, n_out=2, gz=1, group=None, norm='kaiming'):
         super().__init__()
         self.num_feature = num_feature
         self.low_res = low_res
@@ -512,14 +512,14 @@ class ModelTwo(nn.Module):
             ('norm', nn.BatchNorm2d(num_feature)),
         ]))
         self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
+        self.init_weights(norm)
         
     def init_weights(self, norm='kaiming'):
         for name, param in self.named_modules():
             if isinstance(param, nn.Conv2d) and name.find('res')==-1:
                 nn.init.kaiming_normal_(param.weight)
         
-    def forward(self, x, norm='kaiming', has_offset=True):
-        self.init_weights(norm)
+    def forward(self, x, has_offset=True):
         inputs, pyramids = x
         outs = []
         image_1, image_2, image_3, image_4 = inputs
@@ -633,21 +633,21 @@ class ModelThree(nn.Module):
         Args: x, list of tensors
         Returns: out, tensor, 4D, [B, C, H, W]
     '''
-    def __init__(self, num_feature=64, out_channel=3):
+    def __init__(self, num_feature=64, out_channel=3, norm='kaiming'):
         super().__init__()
         
         self.conv_block = nn.Sequential(OrderedDict([
             ('res', ResConvBlock(num_feature)),
             ('conv', nn.Conv2d(num_feature, out_channel, 3, padding=1, bias=True)),
         ]))
+        self.init_weights(norm)
         
     def init_weights(self, norm='kaiming'):
         for name, param in self.named_modules():
             if isinstance(param, nn.Conv2d) and name.find('res')==-1:
                 nn.init.kaiming_normal_(param.weight)
     
-    def forward(self, x, norm='kaiming'):
-        self.init_weights()
+    def forward(self, x):
         inputs, pyramids = x
         final_out = self.conv_block(inputs[0])
         
